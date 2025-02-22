@@ -1,75 +1,133 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/SevereCloud/vksdk/v2/api"
+	"github.com/SevereCloud/vksdk/v2/events" // Импорт событий VK
+	"github.com/SevereCloud/vksdk/v2/object" // Объекты VK (включая сообщения)
 )
 
-// Структура для получения данных от VK
-type VkMessage struct {
-	Type   string `json:"type"`
-	Object struct {
-		Message struct {
-			Text   string `json:"text"`
-			FromID int    `json:"from_id"`
-		} `json:"message"`
-	} `json:"object"`
+// Переменная для confirmationCode
+var confirmationCode string
+var vk *api.VK
+
+func main() {
+	vk = api.NewVK(os.Getenv("VK_TOKEN"))
+
+	// Получаем актуальный confirmation_code
+	confirmationCode = getConfirmationCode(os.Getenv("VK_GROUP_ID"), os.Getenv("VK_TOKEN"))
+
+	http.HandleFunc("/callback", callbackHandler)
+
+	fmt.Println("Бот запущен на порту 8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// Структура для отправки сообщения
-type VkResponse struct {
-	UserID   int    `json:"user_id"`
-	Message  string `json:"message"`
-	RandomID int    `json:"random_id"`
-}
+// Функция для получения confirmation_code у VK
+func getConfirmationCode(groupID string, token string) string {
+	url := fmt.Sprintf("https://api.vk.com/method/groups.getCallbackConfirmationCode?group_id=%s&access_token=%s&v=5.131", groupID, token)
 
-const token = "vk1.a.naO-VwqdpBkrsva5qd3zZ_aBLKDZwtXpI7xYMAKjx30zIIk1394tMmq0jTbMA8J42dKzpzYiDSRXPDv0WCE1aKwZxVE45sa8ZO9xv58worZiI59m78x-oVHWxopTShmsagkOdXGq6-5I9nktAW0VpuDoIvXmIA369bQwm8JLOYYDWVnD3LkwxoFPkmOz4rhifGDTF3fWbNDutOs8nnJVPw" // Замени на свой токен
-
-func sendMessage(userID int, text string) {
-	url := "https://api.vk.com/method/messages.send"
-	data := VkResponse{
-		UserID:   userID,
-		Message:  text,
-		RandomID: 0,
-	}
-
-	jsonData, _ := json.Marshal(data)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	q := req.URL.Query()
-	q.Add("access_token", token)
-	q.Add("v", "5.131")
-	req.URL.RawQuery = q.Encode()
-
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := http.Get(url)
 	if err != nil {
-		log.Println("Ошибка отправки сообщения:", err)
-		return
+		log.Fatal("Ошибка запроса к VK API:", err)
 	}
 	defer resp.Body.Close()
+
+	var data struct {
+		Response struct {
+			Code string `json:"code"`
+		} `json:"response"`
+		Error struct {
+			ErrorCode int    `json:"error_code"`
+			ErrorMsg  string `json:"error_msg"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		log.Fatal("Ошибка обработки ответа VK API:", err)
+	}
+
+	if data.Error.ErrorCode != 0 {
+		log.Fatalf("Ошибка VK API: %d, %s", data.Error.ErrorCode, data.Error.ErrorMsg)
+	}
+
+	return data.Response.Code
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body)
-	var message VkMessage
-	json.Unmarshal(body, &message)
+func callbackHandler(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Println("Ошибка чтения тела запроса:", err)
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	log.Println("Тело запроса от VK:", string(body))
 
-	if message.Type == "message_new" {
-		userID := message.Object.Message.FromID
-		responseText := fmt.Sprintf("Привет, пользователь %d!", userID)
-		sendMessage(userID, responseText)
+	var req events.GroupEvent
+	if err := json.Unmarshal(body, &req); err != nil {
+		log.Println("Ошибка обработки JSON:", err)
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	switch req.Type {
+	case events.EventConfirmation:
+		log.Println("Отправлен confirmation_code:", confirmationCode)
+		fmt.Fprint(w, confirmationCode) // Отправляем правильный confirmation_code
+		return
+	case events.EventMessageNew:
+		var msg events.MessageNewObject
+		if err := json.Unmarshal(req.Object, &msg); err != nil {
+			log.Println("Ошибка декодирования сообщения:", err)
+			return
+		}
+		handleMessage(msg)
 	}
 
 	fmt.Fprint(w, "ok")
 }
 
-func main() {
-	http.HandleFunc("/", handler)
-	fmt.Println("Бот запущен на порту 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+func handleMessage(msg events.MessageNewObject) {
+	userID := msg.Message.PeerID
+	text := msg.Message.Text
+
+	switch text {
+	case "/start":
+		sendMessageWithButtons(userID, "Добро пожаловать в игру! Выберите действие:")
+	default:
+		sendMessage(userID, "Неизвестная команда. Используйте /start")
+	}
+}
+
+func sendMessage(userID int, text string) {
+	_, err := vk.MessagesSend(api.Params{
+		"user_id":   userID,
+		"message":   text,
+		"random_id": 0,
+	})
+	if err != nil {
+		log.Println("Ошибка отправки сообщения:", err)
+	}
+}
+
+func sendMessageWithButtons(userID int, text string) {
+	keyboard := object.NewMessagesKeyboardInline()
+	keyboard.AddRow().AddTextButton("Профиль", "profile", "primary")
+	keyboard.AddRow().AddTextButton("Статистика", "stats", "secondary")
+
+	_, err := vk.MessagesSend(api.Params{
+		"user_id":   userID,
+		"message":   text,
+		"random_id": 0,
+		"keyboard":  keyboard.ToJSON(),
+	})
+	if err != nil {
+		log.Println("Ошибка отправки сообщения с кнопками:", err)
+	}
 }
