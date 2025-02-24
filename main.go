@@ -8,19 +8,17 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/SevereCloud/vksdk/v2/api"
-	"github.com/SevereCloud/vksdk/v2/events" // Импорт событий VK
-	"github.com/SevereCloud/vksdk/v2/object" // Объекты VK (включая сообщения)
+	"github.com/SevereCloud/vksdk/v3/api"
+	"github.com/SevereCloud/vksdk/v3/events"
+	"github.com/SevereCloud/vksdk/v3/object"
 )
 
-// Переменная для confirmationCode
 var confirmationCode string
 var vk *api.VK
 
 func main() {
 	vk = api.NewVK(os.Getenv("VK_TOKEN"))
 
-	// Получаем актуальный confirmation_code
 	confirmationCode = getConfirmationCode(os.Getenv("VK_GROUP_ID"), os.Getenv("VK_TOKEN"))
 
 	http.HandleFunc("/callback", callbackHandler)
@@ -29,7 +27,6 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// Функция для получения confirmation_code у VK
 func getConfirmationCode(groupID string, token string) string {
 	url := fmt.Sprintf("https://api.vk.com/method/groups.getCallbackConfirmationCode?group_id=%s&access_token=%s&v=5.131", groupID, token)
 
@@ -79,7 +76,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	switch req.Type {
 	case events.EventConfirmation:
 		log.Println("Отправлен confirmation_code:", confirmationCode)
-		fmt.Fprint(w, confirmationCode) // Отправляем правильный confirmation_code
+		fmt.Fprint(w, confirmationCode)
 		return
 	case events.EventMessageNew:
 		var msg events.MessageNewObject
@@ -88,9 +85,30 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		handleMessage(msg)
+	case events.EventCallbackQuery: // Обработчик нажатий на кнопки
+		var callback events.CallbackQuery
+		if err := json.Unmarshal(req.Object, &callback); err != nil {
+			log.Println("Ошибка декодирования callback запроса:", err)
+			return
+		}
+		handleCallbackQuery(callback)
 	}
 
 	fmt.Fprint(w, "ok")
+}
+
+func handleCallbackQuery(callback events.CallbackQuery) {
+	payload := callback.Payload
+
+	// Обработка нажатия кнопок
+	switch payload {
+	case "profile":
+		sendMessage(callback.UserID, "Вот ваш профиль.")
+	case "stats":
+		sendMessage(callback.UserID, "Вот ваша статистика.")
+	default:
+		sendMessage(callback.UserID, "Неизвестная кнопка.")
+	}
 }
 
 func handleMessage(msg events.MessageNewObject) {
