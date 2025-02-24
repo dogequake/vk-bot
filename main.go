@@ -85,41 +85,39 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		handleMessage(msg)
-	case events.EventCallbackQuery: // Обработчик нажатий на кнопки
-		var callback events.CallbackQuery
-		if err := json.Unmarshal(req.Object, &callback); err != nil {
-			log.Println("Ошибка декодирования callback запроса:", err)
-			return
-		}
-		handleCallbackQuery(callback)
 	}
 
 	fmt.Fprint(w, "ok")
 }
 
-func handleCallbackQuery(callback events.CallbackQuery) {
-	payload := callback.Payload
-
-	// Обработка нажатия кнопок
-	switch payload {
-	case "profile":
-		sendMessage(callback.UserID, "Вот ваш профиль.")
-	case "stats":
-		sendMessage(callback.UserID, "Вот ваша статистика.")
-	default:
-		sendMessage(callback.UserID, "Неизвестная кнопка.")
-	}
-}
-
 func handleMessage(msg events.MessageNewObject) {
 	userID := msg.Message.PeerID
 	text := msg.Message.Text
+	payload := msg.Message.Payload
 
+	// Обработка команд
 	switch text {
 	case "/start":
 		sendMessageWithButtons(userID, "Добро пожаловать в игру! Выберите действие:")
 	default:
+		// Обработка нажатий на кнопки
+		if payload != "" {
+			handleButtonClick(userID, payload)
+			return
+		}
 		sendMessage(userID, "Неизвестная команда. Используйте /start")
+	}
+}
+
+func handleButtonClick(userID int, payload string) {
+	// Обработка нажатия на кнопки
+	switch payload {
+	case "profile":
+		sendMessage(userID, "Вот ваш профиль.")
+	case "stats":
+		sendMessage(userID, "Вот ваша статистика.")
+	default:
+		sendMessage(userID, "Неизвестная кнопка.")
 	}
 }
 
