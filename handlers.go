@@ -74,6 +74,9 @@ func handleMessage(msg events.MessageNewObject) {
 }
 
 func handleButtonClick(userID int, payload string) {
+
+	log.Println("Получен payload:", payload) // Логируем, что приходит от VK
+
 	// Обработка нажатия на кнопки
 	switch payload {
 	case "profile":
