@@ -26,7 +26,7 @@ func initDB() {
 
 func isUserRegistered(vkID int) bool {
 	var exists bool
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM profiles WHERE vk_id = $1)", vkID).Scan(&exists)
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM profiles WHERE vk_user_id = $1)", vkID).Scan(&exists)
 	if err != nil {
 		log.Println("Ошибка проверки регистрации:", err)
 		return false
@@ -35,9 +35,11 @@ func isUserRegistered(vkID int) bool {
 }
 
 func registerUser(vkID int) {
-	_, err := db.Exec("INSERT INTO profiles (vk_id) VALUES ($1) ON CONFLICT (vk_id) DO NOTHING", vkID)
+	_, err := db.Exec("INSERT INTO profiles (vk_user_id) VALUES ($1) ON CONFLICT (vk_user_id) DO NOTHING", vkID)
 	if err != nil {
 		log.Println("Ошибка регистрации пользователя:", err)
+	} else {
+		log.Println("✅ Пользователь", vkID, "успешно зарегистрирован!")
 	}
 }
 
