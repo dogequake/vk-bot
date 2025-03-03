@@ -95,16 +95,20 @@ func handleMessage(msg events.MessageNewObject) {
 	text := msg.Message.Text
 	payload := msg.Message.Payload
 
-	// Обработка команд
+	// Выводим текст сообщения для отладки
+	log.Println("Получено сообщение:", text)
+
+	// Если это нажатие на кнопку (Payload)
+	if payload != "" {
+		handleButtonClick(userID, payload)
+		return
+	}
+
+	// Обработка обычных сообщений
 	switch text {
-	case "/start":
+	case "/start", "\\/start":
 		sendMessageWithButtons(userID, "Добро пожаловать в игру! Выберите действие:")
 	default:
-		// Обработка нажатий на кнопки
-		if payload != "" {
-			handleButtonClick(userID, payload)
-			return
-		}
 		sendMessage(userID, "Неизвестная команда. Используйте /start")
 	}
 }
