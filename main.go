@@ -46,6 +46,7 @@ func getConfirmationCode(groupID string, token string) string {
 func main() {
 	// Инициализация VK API
 	InitVK() // Теперь функция доступна
+	initDB() // Подключение к БД перед стартом бота
 
 	// Получаем confirmationCode через GetConfirmationCode
 	confirmationCode = getConfirmationCode(os.Getenv("VK_GROUP_ID"), os.Getenv("VK_TOKEN"))
