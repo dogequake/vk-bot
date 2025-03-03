@@ -42,13 +42,13 @@ func getConfirmationCode(groupID string, token string) string {
 
 func main() {
 	// Инициализация VK API
-	initVK()
+	InitVK() // Теперь функция доступна
 
 	// Получаем confirmationCode через GetConfirmationCode
 	confirmationCode = getConfirmationCode(os.Getenv("VK_GROUP_ID"), os.Getenv("VK_TOKEN"))
 
-	// Настроим обработчик callback
-	http.HandleFunc("/callback", callbackHandler)
+	// Подключаем обработчик Callback API
+	http.HandleFunc("/callback", CallbackHandler) // Теперь функция доступна
 
 	fmt.Println("Бот запущен на порту 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

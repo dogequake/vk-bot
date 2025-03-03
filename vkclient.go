@@ -2,12 +2,22 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/SevereCloud/vksdk/v3/api"
 	"github.com/SevereCloud/vksdk/v3/object"
 )
 
 var vk *api.VK
+
+// InitVK инициализирует VK API клиент
+func InitVK() {
+	vkToken := os.Getenv("VK_TOKEN")
+	if vkToken == "" {
+		log.Fatal("VK_TOKEN не установлен в переменных окружения")
+	}
+	vk = api.NewVK(vkToken)
+}
 
 func sendMessage(userID int, text string) {
 	_, err := vk.MessagesSend(api.Params{

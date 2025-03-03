@@ -10,7 +10,8 @@ import (
 	"github.com/SevereCloud/vksdk/v3/events"
 )
 
-func callbackHandler(w http.ResponseWriter, r *http.Request) {
+// CallbackHandler обрабатывает запросы от VK
+func CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Println("Ошибка чтения тела запроса:", err)
