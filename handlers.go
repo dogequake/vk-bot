@@ -54,6 +54,7 @@ func handleMessage(msg events.MessageNewObject) {
 
 	// Если это нажатие на кнопку (Payload)
 	if payload != "" {
+		log.Println("Получен payload:", payload)
 		handleButtonClick(userID, payload)
 		return
 	}
@@ -61,10 +62,10 @@ func handleMessage(msg events.MessageNewObject) {
 	// Обработка обычных сообщений
 	switch text {
 	case "/start", "\\/start":
-		if isUserRegistered(userID) {
-			sendMessage(userID, "Вы уже зарегистрированы! Добро пожаловать обратно.")
+		if !isUserRegistered(userID) {
+			sendMessageWithButtons(userID, "Вы не зарегистрированы. Хотите зарегистрироваться?")
 		} else {
-			sendRegistrationPrompt(userID)
+			sendMessage(userID, "Вы уже зарегистрированы!")
 		}
 		return
 		//sendMessageWithButtons(userID, "Добро пожаловать в игру! Выберите действие:")
@@ -84,8 +85,14 @@ func handleButtonClick(userID int, payload string) {
 	case "stats":
 		sendMessage(userID, "Вот ваша статистика.")
 	case "register":
+		// Регистрация нового пользователя
+		if isUserRegistered(userID) {
+			sendMessage(userID, "Вы уже зарегистрированы.")
+			return
+		}
+
 		registerUser(userID)
-		sendMessage(userID, "Вы зарегистрированы! Скоро сможете выбрать класс и расу.")
+		sendMessage(userID, "Вы успешно зарегистрированы! Теперь выберите класс.")
 	default:
 		sendMessage(userID, "Неизвестная кнопка.")
 	}
