@@ -6,6 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	_ "github.com/SevereCloud/vksdk/v3/api" // Импортируем библиотеку VK
+	_ "github.com/lib/pq"                   // Импортируем драйвер PostgreSQL
 )
 
 var confirmationCode string

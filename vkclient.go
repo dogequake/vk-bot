@@ -19,6 +19,21 @@ func InitVK() {
 	vk = api.NewVK(vkToken)
 }
 
+func sendRegistrationPrompt(userID int) {
+	keyboard := object.NewMessagesKeyboardInline()
+	keyboard.AddRow().AddTextButton("Зарегистрироваться", "register", "primary")
+
+	_, err := vk.MessagesSend(api.Params{
+		"user_id":   userID,
+		"message":   "Вы не зарегистрированы. Хотите пройти регистрацию?",
+		"random_id": 0,
+		"keyboard":  keyboard.ToJSON(),
+	})
+	if err != nil {
+		log.Println("Ошибка отправки кнопки регистрации:", err)
+	}
+}
+
 func sendMessage(userID int, text string) {
 	_, err := vk.MessagesSend(api.Params{
 		"user_id":   userID,

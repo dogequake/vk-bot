@@ -61,7 +61,13 @@ func handleMessage(msg events.MessageNewObject) {
 	// Обработка обычных сообщений
 	switch text {
 	case "/start", "\\/start":
-		sendMessageWithButtons(userID, "Добро пожаловать в игру! Выберите действие:")
+		if isUserRegistered(userID) {
+			sendMessage(userID, "Вы уже зарегистрированы! Добро пожаловать обратно.")
+		} else {
+			sendRegistrationPrompt(userID)
+		}
+		return
+		//sendMessageWithButtons(userID, "Добро пожаловать в игру! Выберите действие:")
 	default:
 		sendMessage(userID, "Неизвестная команда. Используйте /start")
 	}
@@ -74,6 +80,9 @@ func handleButtonClick(userID int, payload string) {
 		sendMessage(userID, "Вот ваш профиль.")
 	case "stats":
 		sendMessage(userID, "Вот ваша статистика.")
+	case "register":
+		registerUser(userID)
+		sendMessage(userID, "Вы зарегистрированы! Скоро сможете выбрать класс и расу.")
 	default:
 		sendMessage(userID, "Неизвестная кнопка.")
 	}
