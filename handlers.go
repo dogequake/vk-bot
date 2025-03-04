@@ -63,7 +63,7 @@ func handleMessage(msg events.MessageNewObject) {
 	switch text {
 	case "/start", "\\/start":
 		if !isUserRegistered(userID) {
-			sendMessageWithButtons(userID, "Вы не зарегистрированы. Хотите зарегистрироваться?")
+			sendRegistrationPrompt(userID)
 		} else {
 			sendMessage(userID, "Вы уже зарегистрированы!")
 		}
