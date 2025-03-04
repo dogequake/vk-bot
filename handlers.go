@@ -77,11 +77,9 @@ func handleMessage(msg events.MessageNewObject) {
 	if step == "choosing_race" {
 		if raceID, err := strconv.Atoi(text); err == nil && raceExists(raceID) {
 			setUserRace(userID, raceID)
-			finalizeRegistration(userID)
-			sendMessage(userID, "Вы успешно зарегистрированы! Добро пожаловать в игру!")
-
-			// Завершаем регистрацию, очищаем шаг
 			setRegistrationStep(userID, "")
+
+			sendMessage(userID, "Вы успешно зарегистрированы! Добро пожаловать в игру!")
 			return
 		} else {
 			sendMessage(userID, "Ошибка: такой расы нет. Введите число из списка.")
