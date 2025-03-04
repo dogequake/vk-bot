@@ -6,11 +6,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
-	"github.com/SevereCloud/vksdk/v3/api"
 	"github.com/SevereCloud/vksdk/v3/events"
-	"github.com/SevereCloud/vksdk/v3/object"
 )
 
 // CallbackHandler обрабатывает запросы от VK
@@ -50,28 +49,37 @@ func CallbackHandler(w http.ResponseWriter, r *http.Request) {
 func handleMessage(msg events.MessageNewObject) {
 	userID := msg.Message.PeerID
 	text := msg.Message.Text
-	payload := msg.Message.Payload
 
-	// Выводим текст сообщения для отладки
 	log.Println("Получено сообщение:", text)
 
-	// Если это нажатие на кнопку (Payload)
-	if payload != "" {
-		log.Println("Получен payload:", payload)
-		handleButtonClick(userID, payload)
+	// Проверяем, если введено число - это выбор класса или расы
+	if classID, err := strconv.Atoi(text); err == nil {
+		if classExists(classID) {
+			setUserClass(userID, classID)
+			sendMessage(userID, "Класс выбран! Теперь выберите расу.\n\n"+getRaceListText())
+			return
+		}
+	}
+
+	if raceID, err := strconv.Atoi(text); err == nil {
+		if raceExists(raceID) {
+			setUserRace(userID, raceID)
+			finalizeRegistration(userID)
+			sendMessage(userID, "Вы успешно зарегистрированы! Добро пожаловать в игру!")
+		} else {
+			sendMessage(userID, "Ошибка: такой расы нет. Введите число от 1 до 10.")
+		}
 		return
 	}
 
-	// Обработка обычных сообщений
+	// Обработка остальных команд
 	switch text {
-	case "/start", "\\/start":
-		if !isUserRegistered(userID) {
-			sendRegistrationPrompt(userID)
+	case "/start":
+		if isUserRegistered(userID) {
+			sendMessage(userID, "Вы уже зарегистрированы! Добро пожаловать обратно.")
 		} else {
-			sendMessage(userID, "Вы уже зарегистрированы!")
+			sendRegistrationPrompt(userID)
 		}
-		return
-		//sendMessageWithButtons(userID, "Добро пожаловать в игру! Выберите действие:")
 	default:
 		sendMessage(userID, "Неизвестная команда. Используйте /start")
 	}
@@ -80,7 +88,7 @@ func handleMessage(msg events.MessageNewObject) {
 func handleButtonClick(userID int, payload string) {
 	log.Println("Получен payload (до обработки):", payload)
 
-	// Убираем лишние кавычки, если они есть
+	// Убираем кавычки из payload, если они есть
 	payload = strings.Trim(payload, "\"")
 
 	log.Println("Получен payload (после обработки):", payload)
@@ -96,42 +104,24 @@ func handleButtonClick(userID int, payload string) {
 			return
 		}
 
-		registerUser(userID)
-		sendMessage(userID, "Вы успешно зарегистрированы! Теперь выберите класс.")
-
-		// Отправляем кнопки с классами
-		sendClassChoice(userID)
+		registerUser(userID) // Пока просто добавляем в базу
+		sendMessage(userID, "Вы успешно зарегистрированы! Теперь выберите класс.\n\n"+getClassListText())
 	default:
 		sendMessage(userID, "Неизвестная кнопка.")
 	}
 }
 
-func sendClassChoice(userID int) {
-	// Получаем список доступных классов из базы
+func getClassListText() string {
 	classes := getClasses()
 
-	// Если классы не найдены, отправляем ошибку
 	if len(classes) == 0 {
-		sendMessage(userID, "Ошибка: не найдено ни одного класса.")
-		return
+		return "Ошибка: классы не найдены."
 	}
 
-	// Создаем клавиатуру для выбора класса
-	keyboard := object.NewMessagesKeyboardInline()
-
-	// Добавляем кнопку для каждого класса
+	var classList string
 	for _, class := range classes {
-		keyboard.AddRow().AddTextButton(class.Name, fmt.Sprintf("class_%d", class.ID), "primary")
+		classList += fmt.Sprintf("%d. %s\n", class.ID, class.Name)
 	}
 
-	// Отправляем сообщение с клавиатурой выбора класса
-	_, err := vk.MessagesSend(api.Params{
-		"user_id":   userID,
-		"message":   "Выберите класс:",
-		"random_id": 0,
-		"keyboard":  keyboard.ToJSON(),
-	})
-	if err != nil {
-		log.Println("Ошибка отправки кнопок выбора класса:", err)
-	}
+	return "Вот доступные классы:\n\n" + classList + "\nВведите номер класса, чтобы выбрать."
 }

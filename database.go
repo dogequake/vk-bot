@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/lib/pq"
@@ -77,6 +78,99 @@ func getClasses() []Class {
 type Class struct {
 	ID   int
 	Name string
+}
+
+// Структура для представления расы
+type Race struct {
+	ID   int
+	Name string
+}
+
+// Функция получения списка рас из БД
+func getRaces() []Race {
+	var races []Race
+
+	// Запрос к базе данных для получения всех рас
+	rows, err := db.Query("SELECT id, name FROM races")
+	if err != nil {
+		log.Println("Ошибка получения рас из БД:", err)
+		return nil
+	}
+	defer rows.Close()
+
+	// Заполняем массив рас
+	for rows.Next() {
+		var race Race
+		if err := rows.Scan(&race.ID, &race.Name); err != nil {
+			log.Println("Ошибка при разборе данных расы:", err)
+			continue
+		}
+		races = append(races, race)
+	}
+
+	// Проверяем ошибки после обработки всех строк
+	if err := rows.Err(); err != nil {
+		log.Println("Ошибка при обработке списка рас:", err)
+		return nil
+	}
+
+	return races
+}
+
+func classExists(classID int) bool {
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM classes WHERE id = $1)", classID).Scan(&exists)
+	if err != nil {
+		log.Println("Ошибка проверки класса:", err)
+		return false
+	}
+	return exists
+}
+
+func setUserClass(vkID int, classID int) {
+	_, err := db.Exec("UPDATE profiles SET class_id = $1 WHERE vk_user_id = $2", classID, vkID)
+	if err != nil {
+		log.Println("Ошибка сохранения класса:", err)
+	}
+}
+
+func getRaceListText() string {
+	races := getRaces()
+
+	if len(races) == 0 {
+		return "Ошибка: расы не найдены."
+	}
+
+	var raceList string
+	for _, race := range races {
+		raceList += fmt.Sprintf("%d. %s\n", race.ID, race.Name)
+	}
+
+	return "Вот доступные расы:\n\n" + raceList + "\nВведите номер расы, чтобы выбрать."
+}
+
+func raceExists(raceID int) bool {
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM races WHERE id = $1)", raceID).Scan(&exists)
+	if err != nil {
+		log.Println("Ошибка проверки расы:", err)
+		return false
+	}
+	return exists
+}
+
+func setUserRace(vkID int, raceID int) {
+	_, err := db.Exec("UPDATE profiles SET race_id = $1 WHERE vk_user_id = $2", raceID, vkID)
+	if err != nil {
+		log.Println("Ошибка сохранения расы:", err)
+	}
+}
+
+func finalizeRegistration(vkID int) {
+	_, err := db.Exec("UPDATE profiles SET registered = true WHERE vk_user_id = $1", vkID)
+	if err != nil {
+		log.Println("Ошибка завершения регистрации:", err)
+	}
 }
 
 // func registerUser(vkID int, firstName, lastName string) {
