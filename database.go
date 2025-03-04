@@ -43,6 +43,42 @@ func registerUser(vkID int) {
 	}
 }
 
+func getClasses() []Class {
+	var classes []Class
+
+	// Запрос в базу для получения классов
+	rows, err := db.Query("SELECT id, name FROM classes")
+	if err != nil {
+		log.Println("Ошибка получения классов из БД:", err)
+		return nil
+	}
+	defer rows.Close()
+
+	// Считываем классы из результата запроса
+	for rows.Next() {
+		var class Class
+		if err := rows.Scan(&class.ID, &class.Name); err != nil {
+			log.Println("Ошибка при разборе данных класса:", err)
+			continue
+		}
+		classes = append(classes, class)
+	}
+
+	// Проверяем ошибки после завершения работы с результатом
+	if err := rows.Err(); err != nil {
+		log.Println("Ошибка при обработке списка классов:", err)
+		return nil
+	}
+
+	return classes
+}
+
+// Структура класса
+type Class struct {
+	ID   int
+	Name string
+}
+
 // func registerUser(vkID int, firstName, lastName string) {
 // 	// Проверяем, зарегистрирован ли пользователь
 // 	var count int

@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/SevereCloud/vksdk/v3/api"
 	"github.com/SevereCloud/vksdk/v3/events"
+	"github.com/SevereCloud/vksdk/v3/object"
 )
 
 // CallbackHandler обрабатывает запросы от VK
@@ -96,7 +98,40 @@ func handleButtonClick(userID int, payload string) {
 
 		registerUser(userID)
 		sendMessage(userID, "Вы успешно зарегистрированы! Теперь выберите класс.")
+
+		// Отправляем кнопки с классами
+		sendClassChoice(userID)
 	default:
 		sendMessage(userID, "Неизвестная кнопка.")
+	}
+}
+
+func sendClassChoice(userID int) {
+	// Получаем список доступных классов из базы
+	classes := getClasses()
+
+	// Если классы не найдены, отправляем ошибку
+	if len(classes) == 0 {
+		sendMessage(userID, "Ошибка: не найдено ни одного класса.")
+		return
+	}
+
+	// Создаем клавиатуру для выбора класса
+	keyboard := object.NewMessagesKeyboardInline()
+
+	// Добавляем кнопку для каждого класса
+	for _, class := range classes {
+		keyboard.AddRow().AddTextButton(class.Name, fmt.Sprintf("class_%d", class.ID), "primary")
+	}
+
+	// Отправляем сообщение с клавиатурой выбора класса
+	_, err := vk.MessagesSend(api.Params{
+		"user_id":   userID,
+		"message":   "Выберите класс:",
+		"random_id": 0,
+		"keyboard":  keyboard.ToJSON(),
+	})
+	if err != nil {
+		log.Println("Ошибка отправки кнопок выбора класса:", err)
 	}
 }
