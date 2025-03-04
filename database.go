@@ -173,6 +173,23 @@ func finalizeRegistration(vkID int) {
 	}
 }
 
+func getRegistrationStep(vkID int) string {
+	var step string
+	err := db.QueryRow("SELECT registration_step FROM profiles WHERE vk_user_id = $1", vkID).Scan(&step)
+	if err != nil {
+		log.Println("Ошибка получения шага регистрации:", err)
+		return ""
+	}
+	return step
+}
+
+func setRegistrationStep(vkID int, step string) {
+	_, err := db.Exec("UPDATE profiles SET registration_step = $1 WHERE vk_user_id = $2", step, vkID)
+	if err != nil {
+		log.Println("Ошибка обновления шага регистрации:", err)
+	}
+}
+
 // func registerUser(vkID int, firstName, lastName string) {
 // 	// Проверяем, зарегистрирован ли пользователь
 // 	var count int

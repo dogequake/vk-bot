@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/SevereCloud/vksdk/v3/events"
 )
@@ -49,27 +48,45 @@ func CallbackHandler(w http.ResponseWriter, r *http.Request) {
 func handleMessage(msg events.MessageNewObject) {
 	userID := msg.Message.PeerID
 	text := msg.Message.Text
+	payload := msg.Message.Payload // Получаем payload
 
 	log.Println("Получено сообщение:", text)
+	log.Println("Получен payload:", payload)
+
+	// ✅ Если пришел payload (нажатие кнопки), вызываем `handleButtonClick`
+	if payload != "" {
+		handleButtonClick(userID, payload)
+		return
+	}
 
 	// Проверяем, если введено число - это выбор класса или расы
-	if classID, err := strconv.Atoi(text); err == nil {
-		if classExists(classID) {
+	step := getRegistrationStep(userID)
+
+	if step == "choosing_class" {
+		if classID, err := strconv.Atoi(text); err == nil && classExists(classID) {
 			setUserClass(userID, classID)
 			sendMessage(userID, "Класс выбран! Теперь выберите расу.\n\n"+getRaceListText())
+			setRegistrationStep(userID, "choosing_race")
+			return
+		} else {
+			sendMessage(userID, "Ошибка: такого класса нет. Введите число из списка.")
 			return
 		}
 	}
 
-	if raceID, err := strconv.Atoi(text); err == nil {
-		if raceExists(raceID) {
+	if step == "choosing_race" {
+		if raceID, err := strconv.Atoi(text); err == nil && raceExists(raceID) {
 			setUserRace(userID, raceID)
 			finalizeRegistration(userID)
 			sendMessage(userID, "Вы успешно зарегистрированы! Добро пожаловать в игру!")
+
+			// Завершаем регистрацию, очищаем шаг
+			setRegistrationStep(userID, "")
+			return
 		} else {
-			sendMessage(userID, "Ошибка: такой расы нет. Введите число от 1 до 10.")
+			sendMessage(userID, "Ошибка: такой расы нет. Введите число из списка.")
+			return
 		}
-		return
 	}
 
 	// Обработка остальных команд
@@ -88,8 +105,11 @@ func handleMessage(msg events.MessageNewObject) {
 func handleButtonClick(userID int, payload string) {
 	log.Println("Получен payload (до обработки):", payload)
 
-	// Убираем кавычки из payload, если они есть
-	payload = strings.Trim(payload, "\"")
+	// Пробуем распарсить JSON payload
+	var cleanPayload string
+	if err := json.Unmarshal([]byte(payload), &cleanPayload); err == nil {
+		payload = cleanPayload
+	}
 
 	log.Println("Получен payload (после обработки):", payload)
 
@@ -104,8 +124,13 @@ func handleButtonClick(userID int, payload string) {
 			return
 		}
 
-		registerUser(userID) // Пока просто добавляем в базу
+		// ✅ Теперь функция используется
+		registerUser(userID)
+
 		sendMessage(userID, "Вы успешно зарегистрированы! Теперь выберите класс.\n\n"+getClassListText())
+
+		// Устанавливаем этап регистрации
+		setRegistrationStep(userID, "choosing_class")
 	default:
 		sendMessage(userID, "Неизвестная кнопка.")
 	}
