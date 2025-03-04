@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/SevereCloud/vksdk/v3/events"
 )
@@ -75,17 +76,19 @@ func handleMessage(msg events.MessageNewObject) {
 }
 
 func handleButtonClick(userID int, payload string) {
+	log.Println("Получен payload (до обработки):", payload)
 
-	log.Println("Получен payload:", payload) // Логируем, что приходит от VK
+	// Убираем лишние кавычки, если они есть
+	payload = strings.Trim(payload, "\"")
 
-	// Обработка нажатия на кнопки
+	log.Println("Получен payload (после обработки):", payload)
+
 	switch payload {
 	case "profile":
 		sendMessage(userID, "Вот ваш профиль.")
 	case "stats":
 		sendMessage(userID, "Вот ваша статистика.")
 	case "register":
-		// Регистрация нового пользователя
 		if isUserRegistered(userID) {
 			sendMessage(userID, "Вы уже зарегистрированы.")
 			return

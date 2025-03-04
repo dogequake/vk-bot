@@ -21,7 +21,7 @@ func InitVK() {
 
 func sendRegistrationPrompt(userID int) {
 	keyboard := object.NewMessagesKeyboardInline()
-	keyboard.AddRow().AddTextButton("Зарегистрироваться", "register", "primary")
+	keyboard.AddRow().AddTextButton("Зарегистрироваться", `register`, "primary") // Используем `register` без кавычек
 
 	_, err := vk.MessagesSend(api.Params{
 		"user_id":   userID,
